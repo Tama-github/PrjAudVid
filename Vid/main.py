@@ -1,11 +1,23 @@
 import numpy as np
 import cv2
 import sys
+import statistics as stat
+
+#TODO find params wich depend of image size
+MIN_CLUSTER_LEN = 10
+MIN_LEN_VECTOR = 8
+MAX_LEN_VECTOR = 150
+X_SAMPLING_DEF = 20
+Y_SAMPLING_DEF = 20
+
+EPS_ANGLE = 0.3
+
+#TODO when we don't detect object, keep last box, center and vector several frames to enhanced visual perceptions of the tracking
 
 #Create interest points on the frame
 def sampleImage(frame):
-    deltaX = 20
-    deltaY = 20
+    deltaX = X_SAMPLING_DEF
+    deltaY = Y_SAMPLING_DEF
     #img = cv2.imread(frame,0)
     height, width = frame.shape[:2]
     #print("taille de l'image : " + str(height) + "x" + str(width))
@@ -32,11 +44,12 @@ def computeCentroid(cluster):
     if (len(cluster) == 0):
         return (0.0, 0.0)
     sum = [0, 0]
-    cpt = 0
+    cpt = 0.0
     for (point, vector) in cluster:
         (a, b) = point
-        sum = sum + [a, b]
-        cpt = cpt + 1
+        sum[0] = sum[0] + a
+        sum[1] = sum[1] + b
+        cpt = cpt + 1.0
     sum = [sum[0] / cpt, sum[1] / cpt]
 
     return (sum[0], sum[1])
@@ -65,15 +78,19 @@ def computeBox(cluster):
 def computeUniqueVector(cluster):
 
     sum = [0.0, 0.0]
+    norms = []
     for (point, vector) in cluster:
         (a, b) = vector
-        sum = sum + [a, b]
-    sum = [sum[0]/np.linalg.norm(sum), sum[1]/np.linalg.norm(sum)]
+        sum[0] = sum[0] + a
+        sum[1] = sum[1] + b
+        norms.append(np.linalg.norm(sum))
+    median = stat.median(norms)
+    sum = [(sum[0]/np.linalg.norm(sum))*median, (sum[1]/np.linalg.norm(sum))*median]
     return (sum[0], sum[1])
 
 
 def clusterVectors(vectors):
-    eps = 0.2
+    eps = EPS_ANGLE
     clusters = []
     for (point, vector) in vectors:
         subCluster = []
@@ -83,7 +100,8 @@ def clusterVectors(vectors):
         for (pointTemp, vectorTemp) in vectors:
             (c, d) = vectorTemp
             normalizedV2 = [c, d]/np.linalg.norm([c, d])
-            if (abs(normalizedV[0]-normalizedV2[0]) < eps) and (abs(normalizedV[1]-normalizedV2[1]) < eps):
+            angle = np.dot(normalizedV, normalizedV2)
+            if (angle > 1-eps and angle < 1+eps):
                 subCluster.append((pointTemp, vectorTemp))
                 vectors.remove((pointTemp, vectorTemp))
         clusters.append(subCluster)
@@ -91,7 +109,7 @@ def clusterVectors(vectors):
     cpt = 1
     objs = []
     for cluster in clusters:
-        if (len(cluster) > 10):
+        if (len(cluster) > MIN_CLUSTER_LEN):
             print("cluster numéro : " + str(cpt))
             print(len(cluster))
             cpt = cpt + 1
@@ -108,22 +126,17 @@ def drawScene(objs, frame):
         (x, y) = center
         (u, v) = vector
         (minX, maxX, minY, maxY) = box
-        cv2.arrowedLine(frame, (int(x), int(y)), (int(x+u), int(y+v)), (0, 0, 255))
-        print(center)
-        cv2.circle(frame, (int(x), int(y)),5, (0, 255, 0),-1)
+        cv2.arrowedLine(frame, (int(x), int(y)), (int(x-u), int(y-v)), (0, 0, 255))
+        cv2.circle(frame, (int(x), int(y)),5, (0, 255, 0), -1)
         cv2.rectangle(frame, (minX, minY), (maxX, maxY), (255, 0, 0))
 
 
 
 
 def kanadeTest():
-    #cap = cv2.VideoCapture('IRIT01.mpg')
-    cap = cv2.VideoCapture(0)
-    # params for ShiTomasi corner detection
-    feature_params = dict( maxCorners = 5,
-                        qualityLevel = 0.3,
-                        minDistance = 7,
-                        blockSize = 7 )
+    cap = cv2.VideoCapture('../../IRIT01.mpg')
+    #cap = cv2.VideoCapture(0)
+
     # Parameters for lucas kanade optical flow
     lk_params = dict( winSize  = (15,15),
                     maxLevel = 2,
@@ -134,17 +147,7 @@ def kanadeTest():
     ret, old_frame = cap.read()
     old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
     
-    p0 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
-    print(type(p0[0][0][0]))
-    print(p0.shape)
-    print(p0)
-    type1 = type(p0)
-    
     p0 = sampleImage(old_gray)
-    type2 = type(p0)
-    print(type(p0[0][0][0]))
-    print(p0.shape)
-    print(p0)
 
     # Create a mask image for drawing purposes
     mask = np.zeros_like(old_frame)
@@ -163,8 +166,8 @@ def kanadeTest():
         for i,(new,old) in enumerate(zip(good_new,good_old)):
             a,b = new.ravel()
             c,d = old.ravel()
-            if thresholdVector((c, d), (a,b), 15, 150):
-                cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
+            if thresholdVector((c, d), (a,b), MIN_LEN_VECTOR, MAX_LEN_VECTOR):
+                #cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
                 point = (c, d)
                 vector = (c-a, d-b)
                 vectors.append((point, vector))
