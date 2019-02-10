@@ -212,6 +212,10 @@ def kanadeHarris(videoName, sample):
     else:
         cap = cv2.VideoCapture(videoName)
 
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    rem = 0
+    oldObjs = []
+
     # Create the sound generator with the sample's path as parameter 
     sg = SoundGenerator(sample)
 
@@ -268,9 +272,19 @@ def kanadeHarris(videoName, sample):
                 vectors.append((point, vector))
                 
         objs = clusterVectors(vectors, frame)
-        objects.append(objs)
         cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
         
+        if (len(objs) == 0 and rem < fps/2.0):
+            objs = oldObjs
+            rem = rem + 1
+        else:
+            oldObjs = objs
+            rem = 0
+        
+        objects.append(objs)
+
+
+
         # Play sound
         sg.soundGenerationForFramePurpose(objs)
         

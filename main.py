@@ -15,6 +15,6 @@ def runCam():
     k.kanadeHarris('0', sound)
 
 
-runCam()
-#runTest()
+#runCam()
+runTest()
 
