@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import sys
 import statistics as stat
+from Aud.soundgenerator import SoundGenerator 
 
 #TODO find params wich depend of image size
 MIN_CLUSTER_LEN = 5
@@ -205,11 +206,14 @@ def drawScene(objs, frame):
         cv2.rectangle(frame, (minX, minY), (maxX, maxY), (255, 0, 0))
 
 
-def kanadeHarris(videoName):
+def kanadeHarris(videoName, sample):
     if (videoName == '0'):
         cap = cv2.VideoCapture(0)
     else:
         cap = cv2.VideoCapture(videoName)
+
+    # Create the sound generator with the sample's path as parameter 
+    sg = SoundGenerator(sample)
 
     # params for harris corner detection
     feature_params = dict( maxCorners = 200,
@@ -218,7 +222,7 @@ def kanadeHarris(videoName):
                        blockSize = 7,
                        useHarrisDetector=True, 
                        k = 0.04)
-
+    
     # Parameters for lucas kanade optical flow
     lk_params = dict( winSize  = (15,15),
                     maxLevel = 2,
@@ -241,6 +245,10 @@ def kanadeHarris(videoName):
             break
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+        # Give the frame width to the sound generator
+        height, width = frame.shape[:2]
+        sg.frameWidth = width
+
         #Lukas & Kanade calculation
         p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
 
@@ -262,6 +270,11 @@ def kanadeHarris(videoName):
         objs = clusterVectors(vectors, frame)
         objects.append(objs)
         cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
+        
+        # Play sound
+        sg.soundGenerationForFramePurpose(objs)
+        
+        # Draw Frame
         drawScene(objs, frame)
 
         img = cv2.add(frame,mask)
@@ -278,3 +291,4 @@ def kanadeHarris(videoName):
     cv2.destroyAllWindows()
     cap.release()
     return objects
+
