@@ -119,6 +119,18 @@ def testBox(oldBox, newBox):
     else:
         return True
 
+def testVectors(vec1, vec2):
+    (u1, v1) = vec1
+    (u2, v2) = vec2
+
+    normalizedV = [u1, v1]/np.linalg.norm([u1, v1])
+    normalizedV2 = [u2, v2]/np.linalg.norm([u2, v2])
+    angle = np.dot(normalizedV, normalizedV2)
+    if (angle >= 1.0-0.3 and angle <= 1.0+0.3):
+        return True
+    else:
+        return False
+
     
 def mergeObjects(obj1, obj2):
     (box1, center1, vector1) = obj1
@@ -147,7 +159,7 @@ def mergeClusters(objs):
         for obj2 in objs:
             (box2, center2, vector2) = obj2
             if (not(obj == obj2)):
-                if (testBox(box, box2)):
+                if (testBox(box, box2) and testVectors(vector, vector2)):
                 #if compareObjs(obj, obj2):
                     mergeObj = mergeObjects(mergeObj, obj2)
                     objs.remove(obj2)
@@ -265,6 +277,8 @@ def kanadeHarris(videoName, sample):
         ret,frame = cap.read()
         if (not(ret)):
             break
+
+        #frame = cv2.bilateralFilter(frame, 5, 2, 2)
         frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Give the frame width to the sound generator
