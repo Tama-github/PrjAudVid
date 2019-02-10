@@ -8,6 +8,7 @@ import scipy.fftpack as fftp
 import pylab as py
 import math
 from audiolab import play
+import sys
 import time
 
 class SoundGenerator :
@@ -106,7 +107,11 @@ class SoundGenerator :
         if (len(sample) != 0) :
             self.scale(sample[0], -1., 1.)
             self.scale(sample[1], -1., 1.)
+            
+            save_stdout = sys.stdout
+            sys.stdout = open('trash', 'w')            
             play(sample, self.fs)
+            sys.stdout = save_stdout
         
         return sample
         

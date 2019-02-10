@@ -103,17 +103,22 @@ def testBox(oldBox, newBox):
 
     (oMinX, oMaxX, oMinY, oMaxY) = oldBox
     (nMinX, nMaxX, nMinY, nMaxY) = newBox
-    maxBox = (min(int(oMinX), int(nMinX)), max(int(oMaxX), int(nMaxX)), min(int(oMinY), int(nMinY)), max(int(oMaxY), int(nMaxY)))
+    maxBox = (min(oMinX, nMinX), max(oMaxX, nMaxX), min(oMinY, nMinY), max(oMaxY, nMaxY))
     areaMaxBox = calcBoxArea(maxBox);
-    minArea = calcBoxArea(oldBox) + calcBoxArea(newBox)
-    ratio = minArea/areaMaxBox
-    #print('max : ' + str(areaMaxBox) + ', min : ' + str(minArea) + ', ratio : ' + str(ratio))
-    if (areaMaxBox > minArea):
+    minX = min(oMinX, nMinX)
+    minY = min(oMinY, nMinY)
+    minBox = (0, oMaxX-oMinX+nMaxX-nMinX, 0, max(oMaxY-oMinY,nMaxY-nMinY))
+    minArea = calcBoxArea(minBox)#calcBoxArea(oldBox) + calcBoxArea(newBox)
+    if not((areaMaxBox - calcBoxArea(oldBox) - calcBoxArea(newBox)) == 0):
+        ratio = minArea/(areaMaxBox - calcBoxArea(oldBox) - calcBoxArea(newBox))
+    else:
+        ratio = 1.0
+    #if (areaMaxBox > minArea):
+    if (areaMaxBox/2.0 > calcBoxArea(oldBox) or areaMaxBox/2.0 > calcBoxArea(newBox)):
         return False
-        #print('max : ' + str(areaMaxBox) + ', min : ' + str(minArea) + ', ratio : ' + str(ratio))
-        #print('objets differents ?')
     else:
         return True
+
     
 def mergeObjects(obj1, obj2):
     (box1, center1, vector1) = obj1
@@ -143,11 +148,24 @@ def mergeClusters(objs):
             (box2, center2, vector2) = obj2
             if (not(obj == obj2)):
                 if (testBox(box, box2)):
+                #if compareObjs(obj, obj2):
                     mergeObj = mergeObjects(mergeObj, obj2)
                     objs.remove(obj2)
+        objs.remove(obj)
         newObjs.append(mergeObj)
 
     return newObjs
+
+#if we consider vertical objects
+def testHorizontalObjects(obj, frame):
+    height, width = frame.shape[:2]
+    (box, center, vector) = obj
+    (minX, maxX, minY, maxY) = box
+    if ((maxY-minY)/width > 0.35):
+        return True
+    else:
+        return False
+
 
 #return true if the box is not to large
 def testBoxSize(frame, obj):
@@ -189,7 +207,7 @@ def clusterVectors(vectors, frame):
             center = computeCentroid(cluster)
             vector = computeUniqueVector(cluster)
             obj = (box, center, vector)
-            if (testBoxSize(frame, obj)):
+            if (testBoxSize(frame, obj) and testHorizontalObjects(obj, frame)):
                 objs.append(obj)
     return mergeClusters(objs)
 
