@@ -4,13 +4,18 @@ import sys
 import statistics as stat
 
 #TODO find params wich depend of image size
-MIN_CLUSTER_LEN = 20
-MIN_LEN_VECTOR = 1
+MIN_CLUSTER_LEN = 5
+MIN_LEN_VECTOR = 2
 MAX_LEN_VECTOR = 200
-X_SAMPLING_DEF = 20
-Y_SAMPLING_DEF = 20
+MINIMUM_COVERAGE = 0.5
 
 EPS_ANGLE = 0.4
+
+#a box can have 30% of the image area
+MAX_SURFACE_BOX = 0.3
+
+X_SAMPLING_DEF = 10
+Y_SAMPLING_DEF = 10
 
 #TODO when we don't detect object, keep last box, center and vector several frames to enhanced visual perceptions of the tracking
 
@@ -88,8 +93,74 @@ def computeUniqueVector(cluster):
     sum = [(sum[0]/np.linalg.norm(sum))*median, (sum[1]/np.linalg.norm(sum))*median]
     return (sum[0], sum[1])
 
+def calcBoxArea(box):
+    (minX, maxX, minY, maxY) = box
+    return (maxX - minX) * (maxY - minY)
 
-def clusterVectors(vectors):
+#return True if is the same object false else
+def testBox(oldBox, newBox):
+
+    (oMinX, oMaxX, oMinY, oMaxY) = oldBox
+    (nMinX, nMaxX, nMinY, nMaxY) = newBox
+    maxBox = (min(int(oMinX), int(nMinX)), max(int(oMaxX), int(nMaxX)), min(int(oMinY), int(nMinY)), max(int(oMaxY), int(nMaxY)))
+    areaMaxBox = calcBoxArea(maxBox);
+    minArea = calcBoxArea(oldBox) + calcBoxArea(newBox)
+    ratio = minArea/areaMaxBox
+    #print('max : ' + str(areaMaxBox) + ', min : ' + str(minArea) + ', ratio : ' + str(ratio))
+    if (areaMaxBox > minArea):
+        return False
+        #print('max : ' + str(areaMaxBox) + ', min : ' + str(minArea) + ', ratio : ' + str(ratio))
+        #print('objets différents ?')
+    else:
+        return True
+    
+def mergeObjects(obj1, obj2):
+    (box1, center1, vector1) = obj1
+    (box2, center2, vector2) = obj2
+    (minX1, maxX1, minY1, maxY1) = box1
+    (minX2, maxX2, minY2, maxY2) = box2
+    (x1, y1) = center1
+    (x2, y2) = center2
+    (u1, v1) = vector1
+    (u2, v2) = vector2
+    box = (min(minX1, minX2), max(maxX1, maxX2), min(minY1, minY2), max(maxY1, maxY2))
+    center = ((x1+x2)/2, (y1+y2)/2)
+    norm = np.linalg.norm([u1+u2, v1+v2])
+    moyNorm = (np.linalg.norm([u1, v1]) + np.linalg.norm([u2, v2]))/2.0;
+    vector = (((u1+u2)/norm) * moyNorm, ((v1+v2)/norm) * moyNorm)
+    return (box, center, vector)
+
+
+def mergeClusters(objs):
+    if (len(objs) <= 0):
+        return objs
+    newObjs = []
+    for obj in objs:
+        mergeObj = obj
+        (box, center, vector) = obj
+        for obj2 in objs:
+            (box2, center2, vector2) = obj2
+            if (not(obj == obj2)):
+                if (testBox(box, box2)):
+                    mergeObj = mergeObjects(mergeObj, obj2)
+                    objs.remove(obj2)
+        newObjs.append(mergeObj)
+
+    return newObjs
+
+#return true if the box is not to large
+def testBoxSize(frame, obj):
+    height, width = frame.shape[:2]
+    totalArea = height*width
+    (box, center, vector) = obj
+    (minX, maxX, minY, maxY) = box
+    boxArea = (maxX-minX) * (maxY - minY)
+    if (boxArea/totalArea < MAX_SURFACE_BOX):
+        return True
+    else:
+        return False
+
+def clusterVectors(vectors, frame):
     eps = EPS_ANGLE
     clusters = []
     for (point, vector) in vectors:
@@ -110,15 +181,18 @@ def clusterVectors(vectors):
     objs = []
     for cluster in clusters:
         if (len(cluster) > MIN_CLUSTER_LEN):
-            print("cluster numéro : " + str(cpt))
-            print(len(cluster))
+            #print("cluster numéro : " + str(cpt))
+            #print(len(cluster))
             cpt = cpt + 1
             box = computeBox(cluster)
             center = computeCentroid(cluster)
             vector = computeUniqueVector(cluster)
             obj = (box, center, vector)
-            objs.append(obj)
-    return objs
+            if (testBoxSize(frame, obj)):
+                objs.append(obj)
+    return mergeClusters(objs)
+
+        
 
 def drawScene(objs, frame):
 
@@ -131,14 +205,19 @@ def drawScene(objs, frame):
         cv2.rectangle(frame, (minX, minY), (maxX, maxY), (255, 0, 0))
 
 
-
-
-def kanadeTest(videoName):
+def kanadeHarris(videoName):
     if (videoName == '0'):
         cap = cv2.VideoCapture(0)
     else:
         cap = cv2.VideoCapture(videoName)
 
+    # params for harris corner detection
+    feature_params = dict( maxCorners = 200,
+                       qualityLevel = 0.001,
+                       minDistance = 3,
+                       blockSize = 7,
+                       useHarrisDetector=True, 
+                       k = 0.04)
 
     # Parameters for lucas kanade optical flow
     lk_params = dict( winSize  = (15,15),
@@ -150,11 +229,13 @@ def kanadeTest(videoName):
     ret, old_frame = cap.read()
     old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
     
-    p0 = sampleImage(old_gray)
+    p0 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
 
     # Create a mask image for drawing purposes
     mask = np.zeros_like(old_frame)
     while(1):
+        objects = []
+
         ret,frame = cap.read()
         if (not(ret)):
             break
@@ -171,12 +252,16 @@ def kanadeTest(videoName):
         for i,(new,old) in enumerate(zip(good_new,good_old)):
             a,b = new.ravel()
             c,d = old.ravel()
+            #cv2.circle(frame, (a, b), 5, (255, 0, 0))
             if thresholdVector((c, d), (a,b), MIN_LEN_VECTOR, MAX_LEN_VECTOR):
                 #cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
                 point = (c, d)
                 vector = (c-a, d-b)
                 vectors.append((point, vector))
-        objs = clusterVectors(vectors)
+                
+        objs = clusterVectors(vectors, frame)
+        objects.append(objs)
+        cv2.arrowedLine(frame, (c, d), (a,b), (0, 0, 255))
         drawScene(objs, frame)
 
         img = cv2.add(frame,mask)
@@ -188,7 +273,8 @@ def kanadeTest(videoName):
         # Now update the previous frame and previous points
         old_gray = frame_gray.copy()
         #p0 = good_new.reshape(-1,1,2)
-        p0 = sampleImage(old_gray)
+        p0 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params)
         #p0 = p1
     cv2.destroyAllWindows()
     cap.release()
+    return objects
