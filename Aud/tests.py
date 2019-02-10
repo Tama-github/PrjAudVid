@@ -7,7 +7,7 @@ from scipy import stats
 import scipy.fftpack as fftp
 import pylab as py
 import math
-from scikits.audiolab import play
+from audiolab import play
 import time
 
 
@@ -76,11 +76,11 @@ def moduleChannelsAmplitude (left, right, coef) :
     right = right + right*coef
   return left, right
 
-def getSoundFrom2Chan (l,r) :
+def getSoundFrom2Chan (left,right) :
     return np.array([left,right]).transpose()
     
 def writeSound(fs, left, right, name) :
-  wavwrite(name, fs, getSoundFrom2Chan(l,r));
+  wavwrite(name, fs, getSoundFrom2Chan(left,right));
   
 
 fs, data = wavread('lb_idle.wav')
@@ -122,6 +122,14 @@ fs, data = wavread('lb_idle.wav')
 
 #wavwrite('test.wav', nfs, res)
 #writeSound(fs, l, r, 'test.wav')
+
+py.figure()
+py.plot(data)
+
+
+data = scale(data, -1., 1.)
+
+
 totalTime = 0;
 t = time.clock()
 while (1) :
@@ -133,8 +141,8 @@ while (1) :
     
     totalTime = totalTime + t
     if (len(samples) != 0) :
-        scale(samples, -1, 1)
-        play(samples)
+        scale(samples, -1., 1.)
+        play(getSoundFrom2Chan(data,data).transpose(), fs)
     
 
 

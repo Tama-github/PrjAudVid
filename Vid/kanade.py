@@ -110,7 +110,7 @@ def testBox(oldBox, newBox):
     if (areaMaxBox > minArea):
         return False
         #print('max : ' + str(areaMaxBox) + ', min : ' + str(minArea) + ', ratio : ' + str(ratio))
-        #print('objets différents ?')
+        #print('objets differents ?')
     else:
         return True
     
@@ -181,7 +181,7 @@ def clusterVectors(vectors, frame):
     objs = []
     for cluster in clusters:
         if (len(cluster) > MIN_CLUSTER_LEN):
-            #print("cluster numéro : " + str(cpt))
+            #print("cluster numero : " + str(cpt))
             #print(len(cluster))
             cpt = cpt + 1
             box = computeBox(cluster)
