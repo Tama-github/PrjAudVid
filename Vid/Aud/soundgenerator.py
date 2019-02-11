@@ -90,7 +90,7 @@ class SoundGenerator :
         return np.array([left,right])
 
     def writeSound(self, fs, left, right, name) :
-        wavwrite(name, fs, getSoundFrom2Chan(left,right));
+        wavwrite(name, fs, getSoundFrom2Chan(left,right).transpose());
     
     def spatialize (self, data, xPlace) :
         l = data
@@ -100,7 +100,7 @@ class SoundGenerator :
         return np.array([l,r])
     
     def fromObjSizeSoundModifier (self, size, sig) :
-        screenSize = self.frameWidth * self.frameHeight/3.
+        screenSize = self.frameWidth * self.frameHeight/10.
         if screenSize > size :
             res = self.filtrePH (sig, int((size/screenSize)*10))
         else :
@@ -110,7 +110,7 @@ class SoundGenerator :
     
     def fromObjSpeedSoundModifier (self, speed, sig) :
         if speed < 1. :
-            res = self.filtrePH (sig, int(speed*100))
+            res = self.filtrePB (sig, int(speed*100))
         else :
             res = self.filtrePH (sig, int(speed))
         return res
@@ -133,20 +133,14 @@ class SoundGenerator :
             (xmin,xmax,ymin,ymax) = box
             objectSize = (xmax - xmin) * (ymax - ymin)
             tmp = self.fromObjSizeSoundModifier(objectSize, tmp)
-            print("tmp = ")
-            print(tmp)
             
             # Changing the sound pitch according to the object's speed
             (u,v) = vector
             speed = math.sqrt(u*u+v*v)
             tmp = self.fromObjSpeedSoundModifier(speed, tmp)
-            print("tmp = ")
-            print(tmp)
             
             # Changing the sound's amplitude according to the object place
             tmp = self.fromObjCenterSoundModifier(center, tmp)
-            print("tmp = ")
-            print(tmp)
             
             sample[0] += tmp[0]
             sample[1] += tmp[1]
@@ -165,7 +159,7 @@ class SoundGenerator :
         
         tmp = time.clock() - self.t
         sample = []
-        if tmp >= 1./12 : # for each frame we want the previous sound to be finished before lauching a new one
+        if tmp >= 1./24 : # for each frame we want the previous sound to be finished before lauching a new one
             self.totalTime = self.totalTime + tmp
             self.t = time.clock()
             
@@ -197,15 +191,28 @@ class SoundGenerator :
         
     def soundGenerationForVideoPurpose (self, objPerFrame) :
         totalDuration = len(objPerFrame) / 24. # 24 frames per second
-        nbSamplesForOneFrame = int(self.fs/24.)
-        result = np.zeros(int(duration*self.fs))
-
+        oneFrameDuration = 1./24.
+        
+        res = np.zeros(int(self.fs*totalDuration))
+        res = np.array([res,res])
+        
+        print(len(objPerFrame))
+        
         for objects in objPerFrame :
+            print("test")
             self.sound2ChanelsWlength(self.data, nbSamplesForOneFrame)
             self.totalTime = self.totaltTime + nbSamplesForOneFrame
+            sample = self.genSampleFromObjects(objects, oneFrameDuration)
             
-            
+            print(len(sample))
+            print(len(sample[0]))
+            res[0][self.totalTime*self.fs : (self.totalTime+oneFrameDuration) * self.fs] = sample[0]
+            res[1][self.totalTime*self.fs : (self.totalTime+oneFrameDuration) * self.fs] = sample[1]
+            self.totalTime = self.totalTime + oneFrameDuration
         
+        print(len(res))
+        print(len(res[0]))
+        return res, self.fs
         
         
 
