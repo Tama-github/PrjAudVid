@@ -18,7 +18,11 @@ fs,s = wavread("ressources/lb_idle.wav")
 
 s = sound.scale(s,-1.,1)
 s = sound.sound2ChanelsWlength(s,fs)
+
 print(fs)
 
-play(s,fs)
+spb = sound.testFiltrePB(s,int(len(s)/10.))
+sph = sound.testFiltrePH(s,int(len(s)/10.))
+
+play(sph,fs)
 
