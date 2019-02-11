@@ -71,7 +71,7 @@ class SoundGenerator :
         return left, right
 
 
-    def getSoundFrom2Chan (self, left,right) :
+    def getSoundFrom2Chan (self, left, right) :
         return np.array([left,right])
 
     def writeSound(self, fs, left, right, name) :
@@ -94,26 +94,39 @@ class SoundGenerator :
 
             sample[0] = sample[0] + sig[0]
             sample[1] = sample[1] + sig[1]
+        print sample
         return sample
         
     def soundGenerationForFramePurpose (self, objects) :
         
         tmp = time.clock() - self.t
-        self.totalTime = self.totalTime + tmp
-        self.t = time.clock()
-        
-        sample = self.genSampleFromObjects (objects, tmp)
-        
-        if (len(sample) != 0) :
-            self.scale(sample[0], -1., 1.)
-            self.scale(sample[1], -1., 1.)
+        sample = []
+        if tmp >= 1./24 :
+            self.totalTime = self.totalTime + tmp
+            self.t = time.clock()
             
-            save_stdout = sys.stdout
-            sys.stdout = open('trash', 'w')            
-            play(sample, self.fs)
-            sys.stdout = save_stdout
+            sample = self.genSampleFromObjects (objects, tmp)
+            
+            if (len(sample) != 0) :
+                #self.scale(sample[0], -1., 1.)
+                #self.scale(sample[1], -1., 1.)
+                
+                save_stdout = sys.stdout
+                sys.stdout = open('trash', 'w')          
+                play(sample, self.fs)
+                sys.stdout = save_stdout
         
         return sample
+        
+#    def soundGenerationForVideoPurpose (self, objPerFrame) :
+#        totalDuration = len(objPerFrame) / 24. # 24 frames per second
+#        nbSamplesForOneFrame = int(self.fs/24.)
+#        result = np.zeros(int(duration*self.fs))
+
+#        for objects in objPerFrame :
+#            self.sound2ChanelsWlength(self.data, nbSamplesForOneFrame, self.totalTime)
+#            self.totalTime = self.totaltTime + nbSamples
+            
         
         
         
