@@ -8,31 +8,13 @@ from Aud.soundgenerator import SoundGenerator
 MIN_CLUSTER_LEN = 5
 MIN_LEN_VECTOR = 2
 MAX_LEN_VECTOR = 200
-MINIMUM_COVERAGE = 0.5
+MINIMUM_COVERAGE = 0.3
 
 EPS_ANGLE = 0.4
 
 #a box can have 30% of the image area
 MAX_SURFACE_BOX = 0.3
 
-X_SAMPLING_DEF = 10
-Y_SAMPLING_DEF = 10
-
-#TODO when we don't detect object, keep last box, center and vector several frames to enhanced visual perceptions of the tracking
-
-#Create interest points on the frame
-def sampleImage(frame):
-    deltaX = X_SAMPLING_DEF
-    deltaY = Y_SAMPLING_DEF
-    #img = cv2.imread(frame,0)
-    height, width = frame.shape[:2]
-    #print("taille de l'image : " + str(height) + "x" + str(width))
-
-    res = []
-    for j in range(deltaX, width, deltaX):
-        for i in range(deltaY, height, deltaY):
-            res.append([[np.float32(j), np.float32(i)]])
-    return np.array(res)
 
 #Use to ignore little and great vectors
 def thresholdVector(oldPoint, newPoint, thresholdMin, thresholdMax):
@@ -159,7 +141,8 @@ def mergeClusters(objs):
         for obj2 in objs:
             (box2, center2, vector2) = obj2
             if (not(obj == obj2)):
-                if (testBox(box, box2) and testVectors(vector, vector2)):
+                #if (testBox(box, box2) and testVectors(vector, vector2)):
+                if (testBox(box, box2)):
                 #if compareObjs(obj, obj2):
                     mergeObj = mergeObjects(mergeObj, obj2)
                     objs.remove(obj2)
@@ -241,8 +224,18 @@ def kanadeHarris(videoName, sample):
         cap = cv2.VideoCapture(0)
     else:
         cap = cv2.VideoCapture(videoName)
-
+        
     fps = cap.get(cv2.CAP_PROP_FPS)
+    
+        
+    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    #fourcc = cv2.CV_FOURCC('M','P','E','G')
+    #fourcc = cap.get(cv2.CAP_PROP_FOURCC)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    #fourcc = cap.get(cv2.CAP_PROP_FOURCC)
+    out = cv2.VideoWriter(videoName + '_out.avi', int(fourcc), fps, (int(width), int(height)), True)
+
     rem = 0
     oldObjs = []
 
@@ -320,10 +313,11 @@ def kanadeHarris(videoName, sample):
 
 
         # Play sound
-        sg.soundGenerationForFramePurpose(objs)
+        #sg.soundGenerationForFramePurpose(objs)
         
         # Draw Frame
         drawScene(objs, frame)
+        out.write(frame)
 
         img = cv2.add(frame,mask)
         cv2.imshow('frame',img)
