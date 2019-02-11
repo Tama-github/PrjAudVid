@@ -18,6 +18,7 @@ fs,s = wavread("ressources/lb_idle.wav")
 
 s = sound.scale(s,-1.,1)
 s = sound.sound2ChanelsWlength(s,fs)
+print(fs)
 
 play(s,fs)
 

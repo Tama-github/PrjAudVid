@@ -70,6 +70,9 @@ class SoundGenerator :
             right = right + right*coef
         return left, right
 
+    def amplitudeChanging (self, sound2Chan, coef) :
+        return sound2Chan * coef
+
 
     def getSoundFrom2Chan (self, left, right) :
         return np.array([left,right])
@@ -85,6 +88,8 @@ class SoundGenerator :
         return np.array([l,r])
     
     def genSampleFromObjects (self, objects, time) :
+        print("fs/24 = " + str(time*self.fs))
+        return self.sound2ChanelsWlength(self.data, int(self.fs/24.))
         tmp = np.zeros(int(time*self.fs))
         sample = self.getSoundFrom2Chan(tmp,tmp)
         for obj in objects :
@@ -101,18 +106,20 @@ class SoundGenerator :
         
         tmp = time.clock() - self.t
         sample = []
-        if tmp >= 1./24 :
+        if tmp >= 1./24 : # for each frame we want the previous sound to be finished before lauching a new one
             self.totalTime = self.totalTime + tmp
             self.t = time.clock()
             
             sample = self.genSampleFromObjects (objects, tmp)
+            #print(sample)
             
-            if (len(sample) != 0) :
+            if (len(sample) > 0) :
                 #self.scale(sample[0], -1., 1.)
                 #self.scale(sample[1], -1., 1.)
-                
+                #print("test")
                 save_stdout = sys.stdout
-                sys.stdout = open('trash', 'w')          
+                sys.stdout = open('trash', 'w')
+                
                 play(sample, self.fs)
                 sys.stdout = save_stdout
         
