@@ -271,8 +271,9 @@ def kanadeHarris(videoName, sample):
 
     # Create a mask image for drawing purposes
     mask = np.zeros_like(old_frame)
+    objects = []
     while(1):
-        objects = []
+        
 
         ret,frame = cap.read()
         if (not(ret)):
@@ -337,5 +338,5 @@ def kanadeHarris(videoName, sample):
         #p0 = p1
     cv2.destroyAllWindows()
     cap.release()
-    return objects
+    return objects, width, height
 

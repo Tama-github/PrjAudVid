@@ -11,6 +11,12 @@ from audiolab import play
 import sys
 import time
 
+OBJECT_SIZE_MODIFIER = 10.
+SCREEN_SIZE_PART = 10.
+OBJECT_LOW_SPEED_MODIFIER = 100.
+OBJECT_HIGHT_SPEED_MODIFIER = 0.1
+
+
 class SoundGenerator :
 
 
@@ -100,19 +106,19 @@ class SoundGenerator :
         return np.array([l,r])
     
     def fromObjSizeSoundModifier (self, size, sig) :
-        screenSize = self.frameWidth * self.frameHeight/10.
+        screenSize = self.frameWidth * self.frameHeight/SCREEN_SIZE_PART
         if screenSize > size :
-            res = self.filtrePH (sig, int((size/screenSize)*10))
+            res = self.filtrePB (sig, int((size/screenSize)*OBJECT_SIZE_MODIFIER))
         else :
-            res = self.filtrePB (sig, int((screenSize/size)*10))
+            res = self.filtrePH (sig, int((screenSize/size)*OBJECT_SIZE_MODIFIER))
         return res
         
     
     def fromObjSpeedSoundModifier (self, speed, sig) :
         if speed < 1. :
-            res = self.filtrePB (sig, int(speed*100))
+            res = self.filtrePB (sig, int(speed*OBJECT_LOW_SPEED_MODIFIER))
         else :
-            res = self.filtrePH (sig, int(speed))
+            res = self.filtrePH (sig, int(speed*OBJECT_HIGHT_SPEED_MODIFIER))
         return res
     
     def fromObjCenterSoundModifier (self, center, sig) :
@@ -189,30 +195,38 @@ class SoundGenerator :
         
         
         
-    def soundGenerationForVideoPurpose (self, objPerFrame) :
+    def soundGenerationForVideoPurpose (self, objPerFramePS) :
+        objPerFrame, width, height = objPerFramePS
+        
+        self.frameHeight = height
+        self.frameWidth = width
+        
         totalDuration = len(objPerFrame) / 24. # 24 frames per second
         oneFrameDuration = 1./24.
+        nbSamplesForOneFrame = int (self.fs/24.)
         
         res = np.zeros(int(self.fs*totalDuration))
         res = np.array([res,res])
         
-        print(len(objPerFrame))
-        
+        i = 0
         for objects in objPerFrame :
-            print("test")
             self.sound2ChanelsWlength(self.data, nbSamplesForOneFrame)
-            self.totalTime = self.totaltTime + nbSamplesForOneFrame
             sample = self.genSampleFromObjects(objects, oneFrameDuration)
+
+            debut = i
+            if len(res[0]) >= nbSamplesForOneFrame+debut :
+                fin = debut+nbSamplesForOneFrame
+            else :
+                fin = len(res[0])
             
-            print(len(sample))
-            print(len(sample[0]))
-            res[0][self.totalTime*self.fs : (self.totalTime+oneFrameDuration) * self.fs] = sample[0]
-            res[1][self.totalTime*self.fs : (self.totalTime+oneFrameDuration) * self.fs] = sample[1]
+            i = fin
+
+            res[0][debut : fin] = sample[0]
+            res[1][debut : fin] = sample[1]
             self.totalTime = self.totalTime + oneFrameDuration
+            
         
-        print(len(res))
-        print(len(res[0]))
-        return res, self.fs
+        return res.transpose(), self.fs
         
         
 
