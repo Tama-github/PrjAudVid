@@ -284,6 +284,7 @@ def kanadeHarris(videoName, sample):
         # Give the frame width to the sound generator
         height, width = frame.shape[:2]
         sg.frameWidth = width
+        sg.frameHeight = height
 
         #Lukas & Kanade calculation
         p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)

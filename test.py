@@ -17,12 +17,12 @@ sound = SoundGenerator("ressources/lb_idle.wav")
 fs,s = wavread("ressources/lb_idle.wav")
 
 s = sound.scale(s,-1.,1)
-s = sound.sound2ChanelsWlength(s,fs)
+s = sound.sound2ChanelsWlength(s,2*fs)
 
 print(fs)
 
-spb = sound.testFiltrePB(s,int(len(s)/10.))
-sph = sound.testFiltrePH(s,int(len(s)/10.))
+spb = sound.filtrePB(s,100)
+sph = sound.filtrePH(s,100)
 
 play(sph,fs)
 

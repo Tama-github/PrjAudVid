@@ -21,6 +21,7 @@ class SoundGenerator :
         self.totalTime = 0
         self.t = time.clock()
         self.frameWidth = 0
+        self.frameHeight = 0
         self.lastFrame = np.array([[0.,0.],[0.,0.]])
 
     def sound2ChanelsWlength (self, x, length, offset=0) :
@@ -36,7 +37,7 @@ class SoundGenerator :
         
         return x_min + nom/denom 
 
-    def testFiltrePH (self, x, seuil) :
+    def filtrePB (self, x, seuil) :
         X = fftp.fft(x)
         
         tmp1 = X[seuil:int(len(X)/2.)]
@@ -50,7 +51,7 @@ class SoundGenerator :
         return y
 
 
-    def testFiltrePB (self, x, seuil) :
+    def filtrePH (self, x, seuil) :
         X = fftp.fft(x)
         
         tmp1 = X[:int(len(X)/2)-seuil]
@@ -98,17 +99,58 @@ class SoundGenerator :
         l,r = self.moduleChannelsAmplitude(l,r,coef)
         return np.array([l,r])
     
+    def fromObjSizeSoundModifier (self, size, sig) :
+        screenSize = self.frameWidth * self.frameHeight/3.
+        if screenSize > size :
+            res = self.filtrePH (sig, int((size/screenSize)*10))
+        else :
+            res = self.filtrePB (sig, int((screenSize/size)*10))
+        return res
+        
+    
+    def fromObjSpeedSoundModifier (self, speed, sig) :
+        if speed < 1. :
+            res = self.filtrePH (sig, int(speed*100))
+        else :
+            res = self.filtrePH (sig, int(speed))
+        return res
+    
+    def fromObjCenterSoundModifier (self, center, sig) :
+        (x,y) = center
+        return self.spatialize(sig, x)
+        
+    
     def genSampleFromObjects (self, objects, time) :
         tmp = np.zeros(int(time*self.fs))
         sample = self.getSoundFrom2Chan(tmp,tmp)
+        sig = self.sound2ChanelsWlength(self.data,int(time*self.fs))
+        
         for obj in objects :
+            tmp = sig
             (box,center,vector) = obj
-            (x,y) = center
-            sig = self.spatialize(self.sound2ChanelsWlength(self.data,int(time*self.fs)), x)
-
-            sample[0] = sample[0] + sig[0]
-            sample[1] = sample[1] + sig[1]
-        print sample
+            
+            # Changing the sound pitch according to the object's size
+            (xmin,xmax,ymin,ymax) = box
+            objectSize = (xmax - xmin) * (ymax - ymin)
+            tmp = self.fromObjSizeSoundModifier(objectSize, tmp)
+            print("tmp = ")
+            print(tmp)
+            
+            # Changing the sound pitch according to the object's speed
+            (u,v) = vector
+            speed = math.sqrt(u*u+v*v)
+            tmp = self.fromObjSpeedSoundModifier(speed, tmp)
+            print("tmp = ")
+            print(tmp)
+            
+            # Changing the sound's amplitude according to the object place
+            tmp = self.fromObjCenterSoundModifier(center, tmp)
+            print("tmp = ")
+            print(tmp)
+            
+            sample[0] += tmp[0]
+            sample[1] += tmp[1]
+            
         return sample
         
     def smoothenStart (self, sample, nb) :
@@ -150,14 +192,18 @@ class SoundGenerator :
             self.lastFrame = sample
         return sample
         
-#    def soundGenerationForVideoPurpose (self, objPerFrame) :
-#        totalDuration = len(objPerFrame) / 24. # 24 frames per second
-#        nbSamplesForOneFrame = int(self.fs/24.)
-#        result = np.zeros(int(duration*self.fs))
+        
+        
+        
+    def soundGenerationForVideoPurpose (self, objPerFrame) :
+        totalDuration = len(objPerFrame) / 24. # 24 frames per second
+        nbSamplesForOneFrame = int(self.fs/24.)
+        result = np.zeros(int(duration*self.fs))
 
-#        for objects in objPerFrame :
-#            self.sound2ChanelsWlength(self.data, nbSamplesForOneFrame, self.totalTime)
-#            self.totalTime = self.totaltTime + nbSamples
+        for objects in objPerFrame :
+            self.sound2ChanelsWlength(self.data, nbSamplesForOneFrame)
+            self.totalTime = self.totaltTime + nbSamplesForOneFrame
+            
             
         
         
